@@ -3,108 +3,55 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { zarejestruj, zaloguj } from "@/lib/api";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { ArrowRight, BadgeHelp, LockKeyhole, Mail, UserRound } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Field, Input } from "@/components/ui/field";
+import { signUp } from "@/lib/api";
+import { registerSchema } from "@/lib/schemas";
 
 export default function RegisterPage() {
   const router = useRouter();
-  const [name, setName] = useState("");
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [passwordConfirm, setPasswordConfirm] = useState("");
-  const [blad, setBlad] = useState("");
-  const [laduje, setLaduje] = useState(false);
+  const [serverError, setServerError] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  const form = useForm({ resolver: zodResolver(registerSchema), defaultValues: { name: "", email: "", password: "", passwordConfirm: "" } });
 
-  // Sprawdza dane i zwraca tekst błędu (pusty tekst = wszystko OK)
-  function sprawdzDane() {
-    if (name.trim().length < 2) return "Imię musi mieć min. 2 znaki.";
-    if (!email.includes("@")) return "Niepoprawny email.";
-    if (password.length < 8) return "Hasło musi mieć min. 8 znaków.";
-    if (password !== passwordConfirm) return "Hasła nie są takie same.";
-    return "";
-  }
-
-  async function wyslijFormularz(e) {
-    e.preventDefault();
-
-    const komunikat = sprawdzDane();
-    if (komunikat !== "") {
-      setBlad(komunikat);
-      return;
-    }
-
-    setBlad("");
-    setLaduje(true);
+  async function submit(values) {
+    setServerError(""); setSubmitting(true);
     try {
-      await zarejestruj(name, email, password, passwordConfirm);
-      await zaloguj(email, password); // od razu logujemy
-      router.push("/");
+      await signUp(values.name, values.email, values.password, values.passwordConfirm);
+      router.replace("/");
     } catch (error) {
-      setBlad(error.message);
-    }
-    setLaduje(false);
+      if (!process.env.NEXT_PUBLIC_POCKETBASE_URL) setServerError("Brakuje adresu PocketBase. Dodaj NEXT_PUBLIC_POCKETBASE_URL w ustawieniach aplikacji.");
+      else if (error?.status === 400 && error?.data?.data?.email) setServerError("Konto z tym adresem e-mail już istnieje.");
+      else if (!error?.status) setServerError("Nie udało się połączyć z serwerem. Spróbuj ponownie za chwilę.");
+      else setServerError("Nie udało się utworzyć konta. Sprawdź dane i spróbuj ponownie.");
+    } finally { setSubmitting(false); }
   }
 
-  return (
-    <main className="mx-auto flex min-h-screen max-w-sm flex-col justify-center gap-4 p-4">
-      <h1 className="text-2xl font-semibold">Rejestracja</h1>
-
-      <form onSubmit={wyslijFormularz} className="flex flex-col gap-4">
-        {blad && <p className="text-sm text-red-500">{blad}</p>}
-
-        <label className="flex flex-col gap-1">
-          Imię
-          <input
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            className="rounded border p-2"
-          />
-        </label>
-
-        <label className="flex flex-col gap-1">
-          Email
-          <input
-            type="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            className="rounded border p-2"
-          />
-        </label>
-
-        <label className="flex flex-col gap-1">
-          Hasło
-          <input
-            type="password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            className="rounded border p-2"
-          />
-        </label>
-
-        <label className="flex flex-col gap-1">
-          Powtórz hasło
-          <input
-            type="password"
-            value={passwordConfirm}
-            onChange={(e) => setPasswordConfirm(e.target.value)}
-            className="rounded border p-2"
-          />
-        </label>
-
-        <button
-          type="submit"
-          disabled={laduje}
-          className="rounded bg-black p-2 text-white disabled:opacity-50"
-        >
-          {laduje ? "Tworzenie konta..." : "Zarejestruj się"}
-        </button>
+  return <main className="auth-shell">
+    <section className="auth-aside">
+      <Link href="/login" className="brand brand-light"><span className="brand-mark"><BadgeHelp size={21} /></span> szkolny<span>helpdesk</span></Link>
+      <div className="aside-copy"><span className="eyebrow eyebrow-light">TWOJA SZKOŁA. SPRAWNIEJSZA.</span><h1>Małe zgłoszenie,<br />duża różnica.</h1><p>Załóż konto, aby w kilka chwil zgłosić problem i na bieżąco sprawdzać, co dzieje się z usterką.</p></div>
+      <div className="aside-note"><UserRound size={18} /><span>Jedno konto wystarczy, aby śledzić wszystkie swoje zgłoszenia.</span></div>
+      <div className="aside-orb orb-one" /><div className="aside-orb orb-two" />
+    </section>
+    <section className="auth-main"><div className="auth-card">
+      <div className="auth-mobile-brand"><span className="brand-mark"><BadgeHelp size={19} /></span> szkolny<span>helpdesk</span></div>
+      <span className="eyebrow">DOŁĄCZ DO NAS</span><h2>Utwórz konto</h2><p className="auth-intro">Zarejestruj się i zgłaszaj usterki w swojej szkole.</p>
+      <form onSubmit={form.handleSubmit(submit)} className="form-stack" noValidate>
+        <Field label="Imię i nazwisko" error={form.formState.errors.name?.message}><div className="input-icon"><UserRound size={17} /><Input autoComplete="name" placeholder="Jan Kowalski" {...form.register("name")} /></div></Field>
+        <Field label="Adres e-mail" error={form.formState.errors.email?.message}><div className="input-icon"><Mail size={17} /><Input autoComplete="email" type="email" placeholder="uczen@szkola.pl" {...form.register("email")} /></div></Field>
+        <div className="form-row">
+          <Field label="Hasło" error={form.formState.errors.password?.message}><div className="input-icon"><LockKeyhole size={17} /><Input autoComplete="new-password" type="password" placeholder="Min. 8 znaków" {...form.register("password")} /></div></Field>
+          <Field label="Powtórz hasło" error={form.formState.errors.passwordConfirm?.message}><div className="input-icon"><LockKeyhole size={17} /><Input autoComplete="new-password" type="password" placeholder="Wpisz ponownie" {...form.register("passwordConfirm")} /></div></Field>
+        </div>
+        {serverError && <p className="form-alert" role="alert">{serverError}</p>}
+        <Button type="submit" disabled={submitting} className="auth-submit">{submitting ? "Tworzenie konta…" : "Utwórz konto"}<ArrowRight size={17} /></Button>
       </form>
-
-      <p className="text-sm">
-        Masz już konto?{" "}
-        <Link href="/login" className="underline">
-          Zaloguj się
-        </Link>
-      </p>
-    </main>
-  );
+      <p className="auth-switch">Masz już konto? <Link href="/login">Zaloguj się</Link></p>
+      <div className="auth-foot"><span>© 2026 Szkolny Helpdesk</span><span>System zgłoszeń szkolnych</span></div>
+    </div></section>
+  </main>;
 }
