@@ -1,36 +1,134 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app).
+# Szkolny Helpdesk
 
-## Getting Started
+Responsywna aplikacja do zgłaszania i obsługi usterek szkolnych. Użytkownik tworzy zgłoszenie, dodaje opcjonalne zdjęcie i śledzi status. Technik widzi zgłoszenia całej szkoły, zmienia statusy, dodaje komentarze, korzysta z filtrów i podsumowań, a lista odświeża się przez PocketBase Realtime.
 
-First, run the development server:
+## Technologie
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
+- Next.js App Router i JavaScript
+- shadcn/ui (konfiguracja JavaScript w `components.json`, komponenty w `src/components/ui`), Tailwind CSS 4
+- PocketBase jako osobna usługa
+- React Hook Form + Zod
+- Wariant wdrożenia: GitHub i ręczny przycisk **Redeploy** w Coolify
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
 
-You can start editing the page by modifying `app/page.js`. The page auto-updates as you edit the file.
+## Zrzuty ekranu
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+Dodaj zrzuty widoków logowania, zgłoszeń użytkownika i panelu technika do `docs/screenshots/` po wdrożeniu i utworzeniu kont testowych.
 
-## Learn More
+## Uruchomienie lokalne
 
-To learn more about Next.js, take a look at the following resources:
+Wymagane: Node.js 22 lub nowszy oraz działająca instancja PocketBase.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+1. Skopiuj `.env.example` do `.env.local`.
+2. Ustaw publiczny adres PocketBase:
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+   ```env
+   NEXT_PUBLIC_POCKETBASE_URL=https://pb.twoja-domena.pl
+   ```
 
-## Deploy on Vercel
+3. W katalogu `helpdsk` uruchom:
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+   ```bash
+   npm ci
+   npm run dev
+   ```
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+4. Otwórz `http://localhost:3000`.
+
+`NEXT_PUBLIC_POCKETBASE_URL` jest wbudowywany do aplikacji przeglądarkowej podczas kompilacji. Po jego zmianie trzeba ponownie zbudować aplikację.
+
+## Kolekcje PocketBase
+
+Aplikacja korzysta z istniejących kolekcji `users` i `problemy`. Pole `users.name` już istnieje. Rola jest w polu `rola`, typu select, z opcjami `user` i `technik`. Rejestracja wysyła jawnie `rola: "user"`; tylko superuser może później zmienić tę wartość.
+
+W `problemy` aplikacja używa pól:
+
+- `autor` — text, wymagane; aplikacja zapisuje tu identyfikator PocketBase zalogowanego użytkownika
+- `tytul` — text, wymagane, max. 100 znaków
+- `opis` — text, wymagane, max. 2000 znaków
+- `sala` — select: `1`, `2`, `3`, `4`, `5`, `6`, `7`, `8`, `67`
+- `kategoria` — select: `sprzęt komputerowy`, `multimedia`, `instalacje`, `inne`
+- `priorytet` — select: `niski`, `średni`, `wysoki`
+- `status` — select: `nowe`, `w realizacji`, `zamknięte`; domyślnie `nowe`
+- `zdjecie` — file, jeden plik, maks. 5 MB, dozwolone MIME `image/jpeg`, `image/png`, `image/webp`, `image/gif`; włącz **Protected**
+
+Wartości select muszą odpowiadać powyższym zapisom; jeśli w Twojej kolekcji mają inne wartości lub nazwy, trzeba zaktualizować mapowanie w `src/lib/api.js`.
+
+Utwórz kolekcję `ticket_events` (Base):
+
+- `ticket` — relation do `problemy`, pojedynczy wybór, wymagane
+- `actor` — relation do `users`, pojedynczy wybór, wymagane
+- `from_status` — text
+- `to_status` — text, wymagane
+- `comment` — text
+
+## Reguły API PocketBase
+
+Reguły trzeba poprawić w **Settings → Collections → [kolekcja] → API Rules**. Puste pole oznacza dostęp publiczny; zablokowana reguła jest dostępna tylko superuserowi. PocketBase stosuje reguły także do zapytań API, więc interfejs nie jest jedyną ochroną.
+
+### `users`
+
+- List: `id = @request.auth.id`
+- View: `@request.auth.id != "" && (id = @request.auth.id || rola = "technik")`
+- Create: `@request.body.rola = "user"`
+- Update: `id = @request.auth.id && @request.body.rola:isset = false`
+- Delete: zablokowane
+- Manage: zablokowane
+
+Reguła View pozwala zalogowanym zobaczyć własny profil oraz profil technika w historii. Reguła Update blokuje użytkownikowi zmianę własnej roli; istniejąca reguła `id = @request.auth.id` pozwalała na jej zmianę i należy ją zastąpić. Pole `autor` w `problemy` jest tekstem, więc aplikacja zapisuje identyfikator użytkownika bez rozwijania relacji.
+
+### `problemy`
+
+- List: `@request.auth.id != "" && (autor = @request.auth.id || @request.auth.rola = "technik")`
+- View: `@request.auth.id != "" && (autor = @request.auth.id || @request.auth.rola = "technik")`
+- Create: `@request.auth.id != "" && @request.body.autor = @request.auth.id && @request.body.status = "nowe"`
+- Update: `@request.auth.rola = "technik" && @request.body.tytul:isset = false && @request.body.opis:isset = false && @request.body.sala:isset = false && @request.body.kategoria:isset = false && @request.body.priorytet:isset = false && @request.body.autor:isset = false && @request.body.zdjecie:isset = false`
+- Delete: zablokowane
+
+Przekazana reguła `View` wyglądała na kopię reguły `Create` i odwoływała się do `@request.body`. Zastąp ją regułą View powyżej. Usuń z Create warunek dotyczący `komentarz:isset`, jeśli pole to nie istnieje w kolekcji.
+
+### `ticket_events`
+
+- List: `@request.auth.id != "" && (ticket.autor = @request.auth.id || @request.auth.rola = "technik")`
+- View: `@request.auth.id != "" && (ticket.autor = @request.auth.id || @request.auth.rola = "technik")`
+- Create: `@request.auth.rola = "technik" && actor = @request.auth.id`
+- Update: zablokowane
+- Delete: zablokowane
+
+Komentarze technika są zapisywane w `ticket_events.comment`, nie w kolekcji `problemy`. Włączone **Protected** przy zdjęciu wymaga tokenu PocketBase do pobrania pliku. Aplikacja uzyskuje go po zalogowaniu, a uprawnienie do rekordu nadal rozstrzygają reguły PocketBase.
+
+## Wdrożenie
+
+### PocketBase w Coolify
+
+1. Uruchom PocketBase jako osobną usługę na VPS.
+2. Zamontuj trwały wolumen hosta do `/pb/pb_data` w kontenerze i zachowaj go przy redeployu.
+3. Wystaw PocketBase pod osobną domeną HTTPS i skonfiguruj proxy do portu 8090.
+4. W panelu PocketBase utwórz superusera, uzupełnij pola i reguły powyżej oraz utwórz konto technika. Konto załóż przez formularz, potem jako superuser ustaw mu `rola=technik`.
+
+### Next.js w Coolify — GitHub
+
+1. Wypchnij repozytorium do GitHuba.
+2. W Coolify utwórz **Application** z repozytorium i gałęzi `main`.
+3. Ustaw katalog `helpdsk` jako Base Directory, aby Coolify użył znajdującego się tam `Dockerfile`.
+4. Ustaw domenę aplikacji i włącz HTTPS.
+5. Dodaj `NEXT_PUBLIC_POCKETBASE_URL` jako **Build Variable**, ustawiając publiczny adres PocketBase. Zmiana tej wartości wymaga ponownego buildu.
+6. Wykonaj pierwszy deploy. Dalsze zmiany wdrażaj przyciskiem **Redeploy**.
+7. Sprawdź oba konta, nowe zgłoszenie, filtry, status, komentarz i historię.
+
+Nie commituj haseł, tokenów ani plików `.env`. `.env.example` zawiera tylko przykładową nazwę zmiennej.
+
+## Konta testowe
+
+Po wdrożeniu utwórz dwa konta demonstracyjne i uzupełnij tę sekcję przed oddaniem projektu:
+
+- Użytkownik: `uzupełnij e-mail` / `uzupełnij hasło`
+- Technik: `uzupełnij e-mail` / `uzupełnij hasło`
+
+## Prezentacja (ok. 5 minut)
+
+1. Zaloguj się jako użytkownik i utwórz zgłoszenie ze zdjęciem.
+2. Pokaż, że użytkownik widzi wyłącznie własne zgłoszenia.
+3. Zaloguj się jako technik; pokaż filtry, dashboard i listę odświeżaną na żywo.
+4. Zmień status, dodaj komentarz i pokaż historię.
+5. W PocketBase pokaż reguły API, a w Coolify usługi aplikacji i PocketBase oraz trwały wolumen.
