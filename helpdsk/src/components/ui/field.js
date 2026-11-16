@@ -1,21 +1,28 @@
-import { cn } from "@/lib/utils";
+import { polaczKlasy } from "@/lib/utils";
 
-export function Input({ className, ...props }) {
-  return <input className={cn("field-control", className)} {...props} />;
+export function PoleTekstowe({ className: klasa, ...pozostaleWlasciwosci }) {
+  return <input className={polaczKlasy("field-control", klasa)} {...pozostaleWlasciwosci} />;
 }
 
-export function Textarea({ className, ...props }) {
-  return <textarea className={cn("field-control min-h-32 resize-y", className)} {...props} />;
+export function PoleOpisu({ className: klasa, ...pozostaleWlasciwosci }) {
+  return <textarea className={polaczKlasy("field-control min-h-32 resize-y", klasa)} {...pozostaleWlasciwosci} />;
 }
 
-export function Select({ className, children, ...props }) {
-  return <select className={cn("field-control", className)} {...props}>{children}</select>;
+export function ListaWyboru({ className: klasa, children, ...pozostaleWlasciwosci }) {
+  return <select className={polaczKlasy("field-control", klasa)} {...pozostaleWlasciwosci}>{children}</select>;
 }
 
-export function Field({ label, error, hint, children, className }) {
-  return <label className={cn("field-wrap", className)}>
-    <span className="field-label">{label}</span>
+export function PoleFormularza({ etykieta, blad, podpowiedz, children, className: klasa }) {
+  return <label className={polaczKlasy("field-wrap", klasa)}>
+    <span className="field-label">{etykieta}</span>
     {children}
-    {error ? <span className="field-error">{error}</span> : hint ? <span className="field-hint">{hint}</span> : null}
+    {blad ? <span className="field-error">{blad}</span> : podpowiedz ? <span className="field-hint">{podpowiedz}</span> : null}
   </label>;
+}
+
+export const Input = PoleTekstowe;
+export const Textarea = PoleOpisu;
+export const Select = ListaWyboru;
+export function Field({ label, error, hint, ...pozostaleWlasciwosci }) {
+  return <PoleFormularza etykieta={label} blad={error} podpowiedz={hint} {...pozostaleWlasciwosci} />;
 }

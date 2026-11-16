@@ -1,128 +1,162 @@
 import PocketBase from "pocketbase";
 
-const baseUrl = process.env.NEXT_PUBLIC_POCKETBASE_URL;
-const ticketsCollection = "problemy";
-const eventsCollection = "ticket_events";
-const technicianRole = "technik";
+const adresPocketBase = process.env.NEXT_PUBLIC_POCKETBASE_URL;
+const kolekcjaZgloszen = "problemy";
+const kolekcjaHistorii = "ticket_events";
+const rolaTechnika = "technik";
 
-export const pb = new PocketBase(baseUrl || "http://127.0.0.1:8090");
-pb.autoCancellation(false);
+export const baza = new PocketBase(adresPocketBase || "http://127.0.0.1:8090");
+baza.autoCancellation(false);
 
-export const categories = ["Sprzęt komputerowy", "Multimedia", "Instalacje", "Inne"];
-export const priorities = ["Niski", "Średni", "Wysoki"];
-export const statuses = ["Nowe", "W realizacji", "Zamknięte"];
-export const rooms = ["1", "2", "3", "4", "5", "6", "7", "8", "67"];
+export const kategorie = ["Sprzęt komputerowy", "Multimedia", "Instalacje", "Inne"];
+export const priorytety = ["Niski", "Średni", "Wysoki"];
+export const statusy = ["Nowe", "W realizacji", "Zamknięte"];
+export const sale = ["1", "2", "3", "4", "5", "6", "7", "8", "67"];
 
-function normalizeChoice(value, choices) {
-  return choices.find((choice) => choice.toLocaleLowerCase("pl-PL") === String(value || "").toLocaleLowerCase("pl-PL")) || value;
+function dopasujWartosc(wartosc, mozliweWartosci) {
+  return mozliweWartosci.find((element) => element.toLocaleLowerCase("pl-PL") === String(wartosc || "").toLocaleLowerCase("pl-PL")) || wartosc;
 }
 
-function normalizeStatus(value) {
-  if (["zamkniete", "zamknięte"].includes(String(value || "").toLocaleLowerCase("pl-PL"))) return "Zamknięte";
-  return normalizeChoice(value, statuses);
+function dopasujStatus(wartosc) {
+  if (["zamkniete", "zamknięte"].includes(String(wartosc || "").toLocaleLowerCase("pl-PL"))) return "Zamknięte";
+  return dopasujWartosc(wartosc, statusy);
 }
 
-function normalizeTicket(record) {
+function przygotujZgloszenie(rekord) {
   return {
-    ...record,
-    owner: record.autor,
-    title: record.tytul,
-    description: record.opis,
-    category: normalizeChoice(record.kategoria, categories),
-    priority: normalizeChoice(record.priorytet, priorities),
-    photo: record.zdjecie,
-    status: normalizeStatus(record.status),
-    expand: record.expand || {},
+    ...rekord,
+    title: rekord.tytul,
+    description: rekord.opis,
+    room: rekord.sala,
+    kategoria: dopasujWartosc(rekord.kategoria, kategorie),
+    category: dopasujWartosc(rekord.kategoria, kategorie),
+    priorytet: dopasujWartosc(rekord.priorytet, priorytety),
+    priority: dopasujWartosc(rekord.priorytet, priorytety),
+    status: dopasujStatus(rekord.status),
+    photo: rekord.zdjecie,
+    expand: rekord.expand || {},
   };
 }
 
-function normalizeUser(record) {
-  return record ? { ...record, role: record.rola } : null;
+function przygotujUzytkownika(rekord) {
+  return rekord ? { ...rekord, role: rekord.rola } : null;
 }
 
-export function currentUser() {
-  return pb.authStore.isValid ? normalizeUser(pb.authStore.record) : null;
+export function aktualnyUzytkownik() {
+  return baza.authStore.isValid ? przygotujUzytkownika(baza.authStore.record) : null;
 }
 
-export async function signIn(email, password) {
-  const result = await pb.collection("users").authWithPassword(email, password);
-  return normalizeUser(result.record);
+export async function zaloguj(adresEmail, haslo) {
+  const wynik = await baza.collection("users").authWithPassword(adresEmail, haslo);
+  return przygotujUzytkownika(wynik.record);
 }
 
-export async function signUp(name, email, password, passwordConfirm) {
-  await pb.collection("users").create({ name, email, password, passwordConfirm, rola: "user" });
-  return signIn(email, password);
-}
-
-export async function listTickets(user) {
-  const filter = user.role === technicianRole ? undefined : `autor = "${user.id}"`;
-  const records = await pb.collection(ticketsCollection).getFullList({
-    sort: "-created",
-    ...(filter ? { filter } : {}),
+export async function zarejestruj(imie, adresEmail, haslo, powtorzoneHaslo) {
+  await baza.collection("users").create({
+    name: imie,
+    email: adresEmail,
+    password: haslo,
+    passwordConfirm: powtorzoneHaslo,
+    rola: "user",
   });
-  return records.map(normalizeTicket);
+  return zaloguj(adresEmail, haslo);
 }
 
-export function createTicket(data) {
-  const files = data.photo;
-  const record = {
-    autor: currentUser().id,
-    tytul: data.title,
-    opis: data.description,
-    sala: data.room,
-    kategoria: String(data.category).toLocaleLowerCase("pl-PL"),
-    priorytet: String(data.priority).toLocaleLowerCase("pl-PL"),
+export async function pobierzZgloszenia(uzytkownik) {
+  const filtr = uzytkownik.rola === rolaTechnika ? undefined : `autor = "${uzytkownik.id}"`;
+  const rekordy = await baza.collection(kolekcjaZgloszen).getFullList({
+    sort: "-created",
+    ...(filtr ? { filter: filtr } : {}),
+  });
+  return rekordy.map(przygotujZgloszenie);
+}
+
+export function dodajZgloszenie(dane) {
+  const rekord = {
+    autor: aktualnyUzytkownik().id,
+    tytul: dane.tytul,
+    opis: dane.opis,
+    sala: dane.sala,
+    kategoria: String(dane.kategoria).toLocaleLowerCase("pl-PL"),
+    priorytet: String(dane.priorytet).toLocaleLowerCase("pl-PL"),
     status: "nowe",
   };
-  if (files) record.zdjecie = files;
-  return pb.collection(ticketsCollection).create(record);
+  if (dane.zdjecie) rekord.zdjecie = dane.zdjecie;
+  return baza.collection(kolekcjaZgloszen).create(rekord);
 }
 
-export function subscribeTickets(onChange) {
-  return pb.collection(ticketsCollection).subscribe("*", onChange);
+export function obserwujZgloszenia(poZmianie) {
+  return baza.collection(kolekcjaZgloszen).subscribe("*", poZmianie);
 }
 
-export async function updateTicket(id, { status, comment, fromStatus }) {
-  const nextStatus = String(status).toLocaleLowerCase("pl-PL");
-  const updated = await pb.collection(ticketsCollection).update(id, {
-    status: nextStatus,
+export async function zmienStatusZgloszenia(id, { status, komentarz, poprzedniStatus }) {
+  const nowyStatus = String(status).toLocaleLowerCase("pl-PL");
+  const zaktualizowanyRekord = await baza.collection(kolekcjaZgloszen).update(id, {
+    status: nowyStatus,
   });
   try {
-    await pb.collection(eventsCollection).create({
+    await baza.collection(kolekcjaHistorii).create({
       ticket: id,
-      actor: currentUser().id,
-      from_status: normalizeStatus(fromStatus).toLocaleLowerCase("pl-PL"),
-      to_status: nextStatus,
-      comment: comment || "",
+      actor: aktualnyUzytkownik().id,
+      from_status: dopasujStatus(poprzedniStatus).toLocaleLowerCase("pl-PL"),
+      to_status: nowyStatus,
+      comment: komentarz || "",
     });
-  } catch (error) {
-    const historyError = new Error("Status został zmieniony, ale nie udało się zapisać historii. Sprawdź kolekcję ticket_events i jej regułę Create.");
-    historyError.stage = "history";
-    historyError.cause = error;
-    throw historyError;
+  } catch (blad) {
+    const bladHistorii = new Error("Status został zmieniony, ale nie udało się zapisać historii. Sprawdź kolekcję ticket_events i jej regułę Create.");
+    bladHistorii.etap = "historia";
+    bladHistorii.cause = blad;
+    throw bladHistorii;
   }
-  return normalizeTicket(updated);
+  return przygotujZgloszenie(zaktualizowanyRekord);
 }
 
-export async function getEvents(ticketId) {
-  const records = await pb.collection(eventsCollection).getFullList({
-    filter: `ticket = "${ticketId}"`,
+export async function pobierzHistorie(idZgloszenia) {
+  const rekordy = await baza.collection(kolekcjaHistorii).getFullList({
+    filter: `ticket = "${idZgloszenia}"`,
     sort: "created",
     expand: "actor",
   });
-  return records.map((event) => ({
-    ...event,
-    from_status: event.from_status ? normalizeStatus(event.from_status) : "",
-    to_status: normalizeStatus(event.to_status),
+  return rekordy.map((wpis) => ({
+    ...wpis,
+    from_status: wpis.from_status ? dopasujStatus(wpis.from_status) : "",
+    to_status: dopasujStatus(wpis.to_status),
   }));
 }
 
-export function signOut() {
-  pb.authStore.clear();
+export function wyloguj() {
+  baza.authStore.clear();
 }
 
-export async function ticketImageUrl(ticket, thumb = "800x600") {
-  if (!ticket?.photo) return null;
-  const token = await pb.files.getToken();
-  return pb.files.getURL(ticket, ticket.photo, { thumb, token });
+export async function pobierzAdresZdjecia(zgloszenie, miniatura = "800x600") {
+  if (!zgloszenie?.zdjecie) return null;
+  const token = await baza.files.getToken();
+  return baza.files.getURL(zgloszenie, zgloszenie.zdjecie, { thumb: miniatura, token });
 }
+
+export const pb = baza;
+export const categories = kategorie;
+export const priorities = priorytety;
+export const statuses = statusy;
+export const rooms = sale;
+export const currentUser = aktualnyUzytkownik;
+export const signIn = zaloguj;
+export const signUp = zarejestruj;
+export const listTickets = pobierzZgloszenia;
+export const createTicket = (dane) => dodajZgloszenie({
+  tytul: dane.title,
+  opis: dane.description,
+  sala: dane.room,
+  kategoria: dane.category,
+  priorytet: dane.priority,
+  zdjecie: dane.photo,
+});
+export const subscribeTickets = obserwujZgloszenia;
+export const updateTicket = (id, dane) => zmienStatusZgloszenia(id, {
+  status: dane.status,
+  komentarz: dane.comment,
+  poprzedniStatus: dane.fromStatus,
+});
+export const getEvents = pobierzHistorie;
+export const signOut = wyloguj;
+export const ticketImageUrl = (zgloszenie, miniatura) => pobierzAdresZdjecia({ ...zgloszenie, zdjecie: zgloszenie.zdjecie || zgloszenie.photo }, miniatura);

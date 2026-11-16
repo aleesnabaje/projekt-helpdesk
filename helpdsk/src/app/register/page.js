@@ -6,30 +6,35 @@ import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { ArrowRight, BadgeHelp, LockKeyhole, Mail, UserRound } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Field, Input } from "@/components/ui/field";
+import { Button as Przycisk } from "@/components/ui/button";
+import { Field as PoleFormularza, Input as PoleTekstowe } from "@/components/ui/field";
 import { signUp } from "@/lib/api";
 import { registerSchema } from "@/lib/schemas";
-
-export default function RegisterPage() {
-  const router = useRouter();
-  const [serverError, setServerError] = useState("");
-  const [submitting, setSubmitting] = useState(false);
-  const form = useForm({ resolver: zodResolver(registerSchema), defaultValues: { name: "", email: "", password: "", passwordConfirm: "" } });
-
-  async function submit(values) {
-    setServerError(""); setSubmitting(true);
+function StronaRejestracji() {
+  const nawigacja = useRouter();
+  const [bladSerwera, ustawBladSerwera] = useState("");
+  const [wysylanie, ustawWysylanie] = useState(false);
+  const formularz = useForm({
+    resolver: zodResolver(registerSchema),
+    defaultValues: {
+      name: "",
+      email: "",
+      password: "",
+      passwordConfirm: ""
+    }
+  });
+  async function wyslijFormularz(dane) {
+    ustawBladSerwera("");
+    ustawWysylanie(true);
     try {
-      await signUp(values.name, values.email, values.password, values.passwordConfirm);
-      router.replace("/");
-    } catch (error) {
-      if (!process.env.NEXT_PUBLIC_POCKETBASE_URL) setServerError("Brakuje adresu PocketBase. Dodaj NEXT_PUBLIC_POCKETBASE_URL w ustawieniach aplikacji.");
-      else if (error?.status === 400 && error?.data?.data?.email) setServerError("Konto z tym adresem e-mail już istnieje.");
-      else if (!error?.status) setServerError("Nie udało się połączyć z serwerem. Spróbuj ponownie za chwilę.");
-      else setServerError("Nie udało się utworzyć konta. Sprawdź dane i spróbuj ponownie.");
-    } finally { setSubmitting(false); }
+      await signUp(dane.name, dane.email, dane.password, dane.passwordConfirm);
+      nawigacja.replace("/");
+    } catch (blad) {
+      if (!process.env.NEXT_PUBLIC_POCKETBASE_URL) ustawBladSerwera("Brakuje adresu PocketBase. Dodaj NEXT_PUBLIC_POCKETBASE_URL w ustawieniach aplikacji.");else if (blad?.status === 400 && blad?.data?.data?.email) ustawBladSerwera("Konto z tym adresem e-mail już istnieje.");else if (!blad?.status) ustawBladSerwera("Nie udało się połączyć z serwerem. Spróbuj ponownie za chwilę.");else ustawBladSerwera("Nie udało się utworzyć konta. Sprawdź dane i spróbuj ponownie.");
+    } finally {
+      ustawWysylanie(false);
+    }
   }
-
   return <main className="auth-shell">
     <section className="auth-aside">
       <Link href="/login" className="brand brand-light"><span className="brand-mark"><BadgeHelp size={21} /></span> szkolny<span>helpdesk</span></Link>
@@ -40,18 +45,19 @@ export default function RegisterPage() {
     <section className="auth-main"><div className="auth-card">
       <div className="auth-mobile-brand"><span className="brand-mark"><BadgeHelp size={19} /></span> szkolny<span>helpdesk</span></div>
       <span className="eyebrow">DOŁĄCZ DO NAS</span><h2>Utwórz konto</h2><p className="auth-intro">Zarejestruj się i zgłaszaj usterki w swojej szkole.</p>
-      <form onSubmit={form.handleSubmit(submit)} className="form-stack" noValidate>
-        <Field label="Imię i nazwisko" error={form.formState.errors.name?.message}><div className="input-icon"><UserRound size={17} /><Input autoComplete="name" placeholder="Jan Kowalski" {...form.register("name")} /></div></Field>
-        <Field label="Adres e-mail" error={form.formState.errors.email?.message}><div className="input-icon"><Mail size={17} /><Input autoComplete="email" type="email" placeholder="uczen@szkola.pl" {...form.register("email")} /></div></Field>
+      <form onSubmit={formularz.handleSubmit(wyslijFormularz)} className="form-stack" noValidate>
+        <PoleFormularza label="Imię i nazwisko" error={formularz.formState.errors.name?.message}><div className="input-icon"><UserRound size={17} /><PoleTekstowe autoComplete="name" placeholder="Jan Kowalski" {...formularz.register("name")} /></div></PoleFormularza>
+        <PoleFormularza label="Adres e-mail" error={formularz.formState.errors.email?.message}><div className="input-icon"><Mail size={17} /><PoleTekstowe autoComplete="email" type="email" placeholder="uczen@szkola.pl" {...formularz.register("email")} /></div></PoleFormularza>
         <div className="form-row">
-          <Field label="Hasło" error={form.formState.errors.password?.message}><div className="input-icon"><LockKeyhole size={17} /><Input autoComplete="new-password" type="password" placeholder="Min. 8 znaków" {...form.register("password")} /></div></Field>
-          <Field label="Powtórz hasło" error={form.formState.errors.passwordConfirm?.message}><div className="input-icon"><LockKeyhole size={17} /><Input autoComplete="new-password" type="password" placeholder="Wpisz ponownie" {...form.register("passwordConfirm")} /></div></Field>
+          <PoleFormularza label="Hasło" error={formularz.formState.errors.password?.message}><div className="input-icon"><LockKeyhole size={17} /><PoleTekstowe autoComplete="new-password" type="password" placeholder="Min. 8 znaków" {...formularz.register("password")} /></div></PoleFormularza>
+          <PoleFormularza label="Powtórz hasło" error={formularz.formState.errors.passwordConfirm?.message}><div className="input-icon"><LockKeyhole size={17} /><PoleTekstowe autoComplete="new-password" type="password" placeholder="Wpisz ponownie" {...formularz.register("passwordConfirm")} /></div></PoleFormularza>
         </div>
-        {serverError && <p className="form-alert" role="alert">{serverError}</p>}
-        <Button type="submit" disabled={submitting} className="auth-submit">{submitting ? "Tworzenie konta…" : "Utwórz konto"}<ArrowRight size={17} /></Button>
+        {bladSerwera && <p className="form-alert" role="alert">{bladSerwera}</p>}
+        <Przycisk type="submit" disabled={wysylanie} className="auth-submit">{wysylanie ? "Tworzenie konta…" : "Utwórz konto"}<ArrowRight size={17} /></Przycisk>
       </form>
       <p className="auth-switch">Masz już konto? <Link href="/login">Zaloguj się</Link></p>
       <div className="auth-foot"><span>© 2026 Szkolny Helpdesk</span><span>System zgłoszeń szkolnych</span></div>
     </div></section>
   </main>;
 }
+export { StronaRejestracji as default };
