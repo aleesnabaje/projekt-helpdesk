@@ -383,3 +383,14 @@ select.field-control { appearance: none; padding-right: 34px; background-image: 
   .sidebar { width: 252px; }
   .main-area { width: 100%; margin-left: 0; }
 }
+
+.login-page { display: grid; min-height: 100vh; place-items: center; padding: 24px; background: var(--page); }
+.login-card { width: min(100%, 430px); border: 1px solid var(--line); background: var(--surface); padding: 26px; }
+.login-brand { display: flex; align-items: center; gap: 9px; margin-bottom: 25px; color: var(--ink); font-size: 15px; font-weight: 700; }
+.login-card h1 { margin: 0 0 7px; font-size: 25px; font-weight: 600; }
+.login-intro { margin: 0 0 22px; color: var(--muted); font-size: 13px; }
+.login-card .form-stack { gap: 15px; }
+.login-submit { width: 100%; border-radius: 4px; box-shadow: none; }
+.login-register { margin: 19px 0 0; color: var(--muted); font-size: 12px; text-align: center; }
+.login-register a { color: var(--blue); font-weight: 700; }
+@media (max-width: 480px) { .login-page { padding: 14px; } .login-card { padding: 20px; } }

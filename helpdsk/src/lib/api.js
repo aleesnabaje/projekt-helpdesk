@@ -5,7 +5,7 @@ const kolekcjaZgloszen = "problemy";
 const kolekcjaHistorii = "ticket_events";
 const rolaTechnika = "technik";
 
-export const baza = new PocketBase(adresPocketBase || "http://127.0.0.1:8090");
+export const baza = new PocketBase(adresPocketBase || "https://db.ilaskowski.store");
 baza.autoCancellation(false);
 
 export const kategorie = ["Sprzęt komputerowy", "Multimedia", "Instalacje", "Inne"];
