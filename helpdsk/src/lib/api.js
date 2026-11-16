@@ -44,17 +44,6 @@ export function currentUser() {
   return pb.authStore.isValid ? normalizeUser(pb.authStore.record) : null;
 }
 
-// Compatibility helpers for the existing home page until the ticket dashboard is added.
-export function pobierzUzytkownika() {
-  const user = currentUser();
-  if (!user) return null;
-  return { ...user, role: user.role === technicianRole ? "technician" : "user" };
-}
-
-export function wyloguj() {
-  signOut();
-}
-
 export async function signIn(email, password) {
   const result = await pb.collection("users").authWithPassword(email, password);
   return normalizeUser(result.record);
