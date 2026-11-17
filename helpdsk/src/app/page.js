@@ -275,7 +275,7 @@ function StronaGlowna() {
       <a className="brand" href="/"><span className="brand-mark"><BadgeHelp size={20} /></span><span>szkolny<strong>helpdesk</strong></span></a>
 
       <div className="nav-caption">MENU GŁÓWNE</div>
-      <nav className="side-nav"><a href="#tickets" className="nav-link nav-active"><LayoutDashboard size={18} /><span>{isTechnician ? "Panel technika" : "Moje zgłoszenia"}</span></a>{isTechnician && <a href="#summary" className="nav-link"><BarChart3 size={18} /><span>Statystyki</span></a>}</nav>
+      <nav className="side-nav"><a href="#tickets" className="nav-link nav-active"><LayoutDashboard size={18} /><span>{isTechnician ? "Panel technika" : "Moje zgłoszenia"}</span></a></nav>
       <div className="sidebar-bottom"><div className="help-card"><span className="help-icon"><CircleHelp size={18} /></span><strong>Potrzebujesz pomocy?</strong><p>Opisz problem w zgłoszeniu, a nasz technik wróci do Ciebie.</p><button onClick={() => ustawOknoTworzenia(true)}>Utwórz zgłoszenie <ChevronRight size={15} /></button></div><button className="profile-button" onClick={wylogujZKonta}><span className="profile-avatar">{(uzytkownik.name || uzytkownik.email || "U").slice(0, 1).toUpperCase()}</span><span className="profile-copy"><strong>{uzytkownik.name || uzytkownik.email}</strong><small>{isTechnician ? "Technik" : "Użytkownik"}</small></span><LogOut size={17} /></button></div>
     </aside>
     {menuOpen && <button className="mobile-scrim" aria-label="Zamknij menu" onClick={() => setMenuOpen(false)} />}
