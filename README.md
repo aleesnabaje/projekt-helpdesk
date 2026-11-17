@@ -23,7 +23,7 @@ Wymagane: Node.js 22 lub nowszy oraz działająca instancja PocketBase.
 2. Ustaw publiczny adres PocketBase:
 
    ```env
-   NEXT_PUBLIC_POCKETBASE_URL=https://pb.twoja-domena.pl
+   NEXT_PUBLIC_POCKETBASE_URL=https://db.ilaskowski.store
    ```
 
 3. W terminalu wejdź do katalogu `helpdsk` i uruchom:

@@ -64,13 +64,13 @@ function OknoNowegoZgloszenia({
     ustawBladSerwera("");
     ustawWysylanie(true);
     try {
-      const dane = {
+      const daneZgloszenia = {
         ...dane
       };
-      const files = dane.photo;
-      delete dane.photo;
-      if (files?.length) dane.photo = files[0];
-      await dodajZgloszenie(dane);
+      const files = daneZgloszenia.photo;
+      delete daneZgloszenia.photo;
+      if (files?.length) daneZgloszenia.photo = files[0];
+      await dodajZgloszenie(daneZgloszenia);
       onCreated();
     } catch (blad) {
       ustawBladSerwera(czytelnyBlad(blad));
